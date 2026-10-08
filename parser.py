@@ -1,4 +1,43 @@
-class MapParser:
+
+from pydantic import BaseModel, Field, model_validator, ConfigDict
+from enum import Enum
+
+class ZoneType(Enum):
+    NORMAL = "normal"
+    RESTRICTED = "restricted"
+    BLOCKED = "blocked"
+    PRIORITY = "priority"
+
+
+class Zone(BaseModel):
+    model_config = ConfigDict(strict=True)
+    name: str = Field(min_length=1)
+    # By default, Pydantic will attempt to coerce values to the desired type when possible.
+    # ConfigDict(strict=True) receives the data from parser and keeps it as is  or rejects it
+    # Will be received as str from .txt and parsed to int, that's what pydantic will validate
+    coord_x: int 
+    coord_y: int 
+    # Despite having no field they are protected by strict=Tru, no field 'cause admits any coordinate even negative
+    color: str | None = None # None by default
+    max_drones: int | None = Field(default=1, gt=0) # max num of drone that can be in an area at the same time
+    zone: ZoneType = ZoneType.NORMAL # I pass the class attribute as a value
+    
+    @model_validator(mode="after")
+    def validate_input_name(self) -> "Zone" : # pydantic requires full class to check it and to return an object of that class
+        # "zone" is a tentative name because by the time the hint is written the class itself is till being defined
+        if "-" in self.name or " " in self.name:
+            raise ValueError("Input name cannot contain '-' nor ' '.")
+        return self # the validated instance must be returned
+
+
+class Connection(BaseModel):
+    model_config = ConfigDict(strict=True)
+    path_a: str = Field(min_length=1)
+    path_b: str = Field(min_length=1)
+    max_link_capacity: int = Field(default=1, gt=0) # nbr of drones crossing at the same time
+
+
+""" class MapParser:
     def __init__(self, path: str) -> None:
         self.path = path
 
@@ -8,5 +47,5 @@ def parse() -> None:
         lines: list[tuple[int, str]] = list(enumerate(file, start=1))
 
     for line_nbr, line_text in lines:
-        print(line_nbr, line_text.rstrip("\n"))
+        print(line_nbr, line_text.rstrip("\n")) """
 

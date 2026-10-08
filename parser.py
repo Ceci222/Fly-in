@@ -20,7 +20,7 @@ class Zone(BaseModel):
     # Despite having no field they are protected by strict=Tru, no field 'cause admits any coordinate even negative
     color: str | None = None # None by default
     max_drones: int | None = Field(default=1, gt=0) # max num of drone that can be in an area at the same time
-    zone: ZoneType = ZoneType.NORMAL # I pass the class attribute as a value
+    zone_type: ZoneType = ZoneType.NORMAL # I pass the class attribute as a value
     
     @model_validator(mode="after")
     def validate_input_name(self) -> "Zone" : # pydantic requires full class to check it and to return an object of that class
@@ -37,7 +37,7 @@ class Connection(BaseModel):
     max_link_capacity: int = Field(default=1, gt=0) # nbr of drones crossing at the same time
 
 
-""" class MapParser:
+class MapParser:
     def __init__(self, path: str) -> None:
         self.path = path
 
@@ -47,5 +47,22 @@ def parse() -> None:
         lines: list[tuple[int, str]] = list(enumerate(file, start=1))
 
     for line_nbr, line_text in lines:
-        print(line_nbr, line_text.rstrip("\n")) """
+        print(line_nbr, line_text.rstrip("\n"))
 
+    for line_nbr, line_text in lines:
+        line = line_text.strip()
+        if line == "": # Removes spaces, if get empty line continue
+            # if line == "" is the same as if not line -> if line has no content
+            continue
+        if line.startswith("#"):
+            continue
+        elif line.startswith("nb_drones:"):
+            drone_nb = line.removeprefix("nb_drones:")
+            if drone_nb == "":
+                raise ValueError(f"line {line_nbr}: nb_drones has no value")
+            else:
+                nb_drone =  int(drone_nb.lstrip())
+                if nb_drone <= 0:
+                    raise ValueError(f"line {line_nbr}: nb_drones must be a positive value")
+        # line_nbr es sólo variable de iteración, el "ínidice" que crea 
+        # solo es temporal dentro del for no se accede desde fuera

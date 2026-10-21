@@ -118,6 +118,8 @@ class MapParser:
             if line.startswith("#"):
                 continue
             elif line.startswith("nb_drones:"):
+                if line_nbr != 1:
+                    raise ValueError(f"Line {line_nbr}: nb_drones must be int first line")
                 self.nb_drones = line.removeprefix("nb_drones:")
                 if self.nb_drones == "":
                     raise ValueError(

@@ -2,7 +2,6 @@
 from pydantic import BaseModel, Field, model_validator, ConfigDict, field_validator
 from enum import Enum
 
-
 class ZoneType(Enum):
     NORMAL = "normal"
     RESTRICTED = "restricted"
@@ -42,8 +41,8 @@ class Zone(BaseModel):
     # Despite having no field they are protected by strict=Tru,
     # no field 'cause admits any coordinate even negative
     color: Colors | None = None  # None by default
-    max_drones: int | None = Field(default=1, gt=0)
-    # max num of drone that can be in an area at the same time
+    max_drones: int | None 
+    # max num of drone that can be in several areas at the same time
     zone_type: ZoneType = ZoneType.NORMAL
     # I pass the class attribute as a value
 
@@ -75,7 +74,7 @@ class Zone(BaseModel):
             try:
                 return Colors(color) # if the color exists within the the enum it is returned, else the except takes over
             except ValueError:
-                print(f"{color} must be a valid color, default color will be used")
+                print("Since no valid color has been provided, none will be used")
                 return None
         
 # model validator receives the whole object, field validator receives the field instead
@@ -98,7 +97,7 @@ class MapParser:
 
 
     def parse(self) -> None:
-        nb_drone_data_counter = 0
+        drone_nbr_counter = 0
         start_hub_counter = 0
         end_hub_counter = 0
 
@@ -117,17 +116,20 @@ class MapParser:
                 continue
             if line.startswith("#"):
                 continue
+            if not (line.startswith("nb_drones:") or line.startswith("start_hub:") or line.startswith("end_hub:") or line.startswith("connection:") or line.startswith("hub:")):
+                raise ValueError(f"Line {line_nbr}: unknown line type (expected nb_drones, start_hub, end_hub, hub or connection)")
             elif line.startswith("nb_drones:"):
-                if line_nbr != 1:
-                    raise ValueError(f"Line {line_nbr}: nb_drones must be int first line")
                 self.nb_drones = line.removeprefix("nb_drones:")
                 if self.nb_drones == "":
                     raise ValueError(
                         f"line {line_nbr}: nb_drones has no value")
+                elif not self.nb_drones.isdigit():
+                    raise ValueError(
+                        f"line {line_nbr}: nb_drones must be a positive number")
                 else:
                     self.nb_drones = int(self.nb_drones.lstrip())
-                    nb_drone_data_counter += 1
-                    if nb_drone_data_counter > 1:
+                    drone_nbr_counter += 1
+                    if drone_nbr_counter > 1:
                         raise ValueError(
                             f"line {line_nbr}: nb_drones has already been "
                             f"declared")
@@ -138,28 +140,53 @@ class MapParser:
             # line_nbr is just and iteration avriable, the created "index"
             # is just temporary within the for loop. It cannot be accessed form outside the loop
                     print(f"Nb or drones: {self.nb_drones}")
-            elif line.startswith("start_hub") or line.startswith("end_hub") or line.startswith("hub"):
+            elif line.startswith("start_hub:") or line.startswith("end_hub:") or line.startswith("connection:") or line.startswith("hub:"):
+                if drone_nbr_counter != 1:
+                    raise ValueError(f"Line {line_nbr}: nb_drones must be on the first line")
+                
                 current_color = None
                 current_max_drones = 1
                 current_zone = ZoneType.NORMAL
+
                 if line.startswith("start_hub"):
                     no_prefix_line = line.removeprefix("start_hub:")
                     start_hub_counter +=1
                     if start_hub_counter > 1:
                         raise ValueError(f"Line {line_nbr}: start_hub seems to appear more than once in the map")
-                if line.startswith("end_hub"):
+                elif line.startswith("end_hub"):
                     no_prefix_line = line.removeprefix("end_hub:")
                     end_hub_counter += 1
                     if end_hub_counter > 1:
                         raise ValueError(f"Line {line_nbr}: end_hub seems to appear more than once in the map")
-                if line.startswith("hub"):
+                elif line.startswith("hub"):
                     no_prefix_line = line.removeprefix("hub:")
+                elif line.startswith("connection"):
+                    no_prefix_line = line.removeprefix("connection:")
+                    continue  # skips to next loop turn and skips metadata, which connection doesn't have
+                else:
+                    raise ValueError(f"Line {line_nbr}: the prefix provided is not a valid line type")
+                if "[" in line and "]" not in line:
+                    raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
+                if "]" in line and "[" not in line:
+                    raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
                 given_zone = no_prefix_line.split("[")  # returns a list of 2 elements, whatever was pre and post "["
                 coord_and_name = given_zone[0].split()
                 name, x, y = coord_and_name
+                try:
+                    int(x)
+                except ValueError:
+                    raise ValueError(f"Line {line_nbr}: zone coordinates must be integers (got x='{x}', y='{y}')")
+                try:
+                    int(y)
+                except ValueError:
+                    raise ValueError(f"Line {line_nbr}: zone coordinates must be integers (got x='{x}', y='{y}')")
                 if len(given_zone) == 2:
                     metadata = given_zone[1].rstrip("]") #gotta remove the remaining bracket
                     splitted_metadata = metadata.split()
+                    if len(splitted_metadata) == 0:
+                        raise ValueError(f"Line {line_nbr}: metadata block cannot be empty")
+                    if len(splitted_metadata) > 3:
+                        raise ValueError(f"Line {line_nbr}: a zone accepts at most 3 metadata tags (zone, color, max_drones)")
                     if len(splitted_metadata) >= 1 and len(splitted_metadata) <= 3:
                         for data in splitted_metadata:
                             parts = data.split("=")
@@ -173,17 +200,20 @@ class MapParser:
                                 current_zone = ZoneType(value)
                             elif "max_drones" == key:
                                 current_max_drones = int(value)  # because with model_config = ConfigDict(strict=True) pydantic no loger casts by default
+                                if current_max_drones <= 0 and line.startswith("hub"):
+                                    raise ValueError(f"Line {line_nbr}: max_drones must be a positive integer")
                             else:
                                 raise ValueError(f"line {line_nbr}: The allowed metadata includes 'color', 'zone', 'max_drones'")
                 elif len(given_zone) > 2:
                     raise ValueError(f"line {line_nbr}: a zone needs a name and two coordinates and optional metadata")
-
+                if line.startswith("start_hub") or line.startswith("end_hub"):
+                    current_max_drones = None
                 map_zone = Zone(name = name, coord_x = int(x), coord_y = int(y), color = current_color, max_drones = current_max_drones, zone_type = current_zone)                    
                 if name in self.zones:
                     raise ValueError(f"Line {line_nbr}: zone name '{name}' is duplicated")
                 self.zones[name] = map_zone  # since self.zones is a dict I assign the zone to the key(the key is whatever I seva in "name")
         
-        if nb_drone_data_counter == 0:
+        if drone_nbr_counter == 0:
             raise ValueError("nb_drones is missing")
         if start_hub_counter == 0:
             raise ValueError("start_hub is missing")

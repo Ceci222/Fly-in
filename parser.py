@@ -26,6 +26,7 @@ class Colors(Enum):
     RED = "red"
     VIOLET = "violet"
     YELLOW = "yellow"
+    GRAY = "gray"
 
 class Zone(BaseModel):
     model_config = ConfigDict(strict=True)
@@ -199,7 +200,10 @@ class MapParser:
                                 current_color = value # Must have been set to none inictially so it doesn't break when insatantiated
                                 # Can't be Colors(value) because this is castin not instantiation so it would try to turn to Enum something that's not on the list
                             elif "zone" == key:
-                                current_zone = ZoneType(value)
+                                try:
+                                    current_zone = ZoneType(value)
+                                except ValueError:
+                                    raise ValueError(f"Line {line_nbr}: invalid zone type '{value}' (expected normal, blocked, restricted or priority)")
                             elif "max_drones" == key:
                                 try:
                                     current_max_drones = int(value)  # because with model_config = ConfigDict(strict=True) pydantic no loger casts by default

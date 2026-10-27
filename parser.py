@@ -192,31 +192,30 @@ class MapParser:
                         raise ValueError(f"Line {line_nbr}: metadata block cannot be empty")
                     if len(splitted_metadata) > 3:
                         raise ValueError(f"Line {line_nbr}: a zone accepts at most 3 metadata tags (zone, color, max_drones)")
-                    if len(splitted_metadata) >= 1 and len(splitted_metadata) <= 3:
-                        for data in splitted_metadata:
-                            parts = data.split("=")
-                            if len(parts) != 2:
-                                raise ValueError(f"Line {line_nbr}: Metadata requires 'key=value' format")
-                            key, value = parts  # destructres for every turn, every data in the loop
-                            if "color" == key:
-                                current_color = value # Must have been set to none inictially so it doesn't break when insatantiated
-                                # Can't be Colors(value) because this is castin not instantiation so it would try to turn to Enum something that's not on the list
-                            elif "zone" == key:
-                                try:
-                                    current_zone = ZoneType(value)
-                                except ValueError:
-                                    raise ValueError(f"Line {line_nbr}: invalid zone type '{value}' (expected normal, blocked, restricted or priority)")
-                            elif "max_drones" == key:
-                                try:
-                                    current_max_drones = int(value)  # because with model_config = ConfigDict(strict=True) pydantic no loger casts by default
-                                except ValueError:
-                                    raise ValueError(f"Line {line_nbr}: max_drones must be a positive integer (got '{value}')")
-                                if current_max_drones <= 0 and line.startswith("hub"):
-                                    raise ValueError(f"Line {line_nbr}: max_drones must be a positive integer")
-                            else:
-                                raise ValueError(f"line {line_nbr}: The allowed metadata includes 'color', 'zone', 'max_drones'")
+                    for data in splitted_metadata:
+                        parts = data.split("=")
+                        if len(parts) != 2:
+                            raise ValueError(f"Line {line_nbr}: Metadata requires 'key=value' format")
+                        key, value = parts  # destructres for every turn, every data in the loop
+                        if "color" == key:
+                            current_color = value # Must have been set to none inictially so it doesn't break when insatantiated
+                            # Can't be Colors(value) because this is castin not instantiation so it would try to turn to Enum something that's not on the list
+                        elif "zone" == key:
+                            try:
+                                current_zone = ZoneType(value)
+                            except ValueError:
+                                raise ValueError(f"Line {line_nbr}: invalid zone type '{value}' (expected normal, blocked, restricted or priority)")
+                        elif "max_drones" == key:
+                            try:
+                                current_max_drones = int(value)  # because with model_config = ConfigDict(strict=True) pydantic no loger casts by default
+                            except ValueError:
+                                raise ValueError(f"Line {line_nbr}: max_drones must be a positive integer (got '{value}')")
+                            if current_max_drones <= 0 and line.startswith("hub"):
+                                raise ValueError(f"Line {line_nbr}: max_drones must be a positive integer")
+                        else:
+                            raise ValueError(f"line {line_nbr}: The allowed metadata includes 'color', 'zone', 'max_drones'")
                 elif len(given_zone) > 2:
-                    raise ValueError(f"line {line_nbr}: a zone needs a name and two coordinates and optional metadata")
+                    raise ValueError(f"Line {line_nbr}: a zone accepts only one metadata block [...]")
                 if line.startswith("start_hub") or line.startswith("end_hub"):
                     current_max_drones = None
                 map_zone = Zone(name = name, coord_x = int(x), coord_y = int(y), color = current_color, max_drones = current_max_drones, zone_type = current_zone)                    

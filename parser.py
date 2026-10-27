@@ -174,6 +174,8 @@ class MapParser:
                     raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
                 given_zone = no_prefix_line.split("[")  # returns a list of 2 elements, whatever was pre and post "["
                 coord_and_name = given_zone[0].split()
+                if len(coord_and_name) != 3:
+                    raise ValueError(f"Line {line_nbr}: a zone needs a name and two coordinates (got {len(coord_and_name)} values)")
                 name, x, y = coord_and_name
                 try:
                     int(x)

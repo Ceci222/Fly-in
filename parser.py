@@ -120,6 +120,8 @@ class MapParser:
                 raise ValueError(f"Line {line_nbr}: unknown line type (expected nb_drones, start_hub, end_hub, hub or connection)")
             elif line.startswith("nb_drones:"):
                 self.nb_drones = line.removeprefix("nb_drones:")
+                if self.nb_drones.startswith(" "):
+                    self.nb_drones= self.nb_drones.lstrip()
                 if self.nb_drones == "":
                     raise ValueError(
                         f"line {line_nbr}: nb_drones has no value")
@@ -199,7 +201,10 @@ class MapParser:
                             elif "zone" == key:
                                 current_zone = ZoneType(value)
                             elif "max_drones" == key:
-                                current_max_drones = int(value)  # because with model_config = ConfigDict(strict=True) pydantic no loger casts by default
+                                try:
+                                    current_max_drones = int(value)  # because with model_config = ConfigDict(strict=True) pydantic no loger casts by default
+                                except ValueError:
+                                    raise ValueError(f"Line {line_nbr}: max_drones must be a positive integer (got '{value}')")
                                 if current_max_drones <= 0 and line.startswith("hub"):
                                     raise ValueError(f"Line {line_nbr}: max_drones must be a positive integer")
                             else:

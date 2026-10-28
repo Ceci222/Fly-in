@@ -82,7 +82,7 @@ class Zone(BaseModel):
 # it receives two params, the field on which it's applied and the execution mode
 # positional args should go before keyargs (syntax -> mode='after')
 class Connection(BaseModel):
-    model_config = ConfigDict(strict=True)
+    model_config = ConfigDict(strict=True)  # pydantic stric, not automatic data casting
     path_a: str = Field(min_length=1)
     path_b: str = Field(min_length=1)
     max_link_capacity: int = Field(default=1, gt=0)
@@ -101,6 +101,7 @@ class MapParser:
         drone_nbr_counter = 0
         start_hub_counter = 0
         end_hub_counter = 0
+        connection = 0
 
         with open(self.path, "r",
                   encoding="utf-8") as file:
@@ -165,9 +166,32 @@ class MapParser:
                     no_prefix_line = line.removeprefix("hub:")
                 elif line.startswith("connection"):
                     no_prefix_line = line.removeprefix("connection:")
-                    continue  # skips to next loop turn and skips metadata, which connection doesn't have
-                else:
-                    raise ValueError(f"Line {line_nbr}: the prefix provided is not a valid line type")
+                    connection += 1
+                    if "[" in line and "]" not in line:
+                        raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
+                    if "]" in line and "[" not in line:
+                        raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
+                    given_connection = no_prefix_line.split("[")
+                    if len(given_connection) == 2:
+                        connection_name, connect_metadata = given_connection
+                        connect_metadata = connect_metadata.rstrip("]")  # if theres no "]" strip doesn't fail, it just doesn't do anything
+                        connection_metadata = connect_metadata.split("=")
+                        if len(connection_metadata) != 2:
+                            raise ValueError(f"Line {line_nbr}: Metadata requires 'key=value' format")
+                        useless_prefix, max_capacity =  connection_metadata
+                        if useless_prefix != "max_link_capacity":
+                            raise ValueError(f"Line {line_nbr}: the only allowed connection metadata is 'max_link_capacity'")
+                        try:
+                            if int(max_capacity) >= 1:
+                                max_capacity = int(max_capacity)
+                        except ValueError:
+                            raise ValueError(f"Line {line_nbr}: 'max_link_capacity' needs to be a positive integer")
+                        """if connection >= 1:
+                            try:
+                                new_connection = Connection(connection_name, max_capacity)
+                            except ValueError:
+                                raise ValueError(f"Line {line_nbr}: invalid zone name '{name}' (dashes are not allowed)") """
+                    continue  # skips the rest of verifications for metadata which don't apply to connections, but do to other zones, and continues with the next turn of the lopp, otherwise it would fail
                 if "[" in line and "]" not in line:
                     raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
                 if "]" in line and "[" not in line:
@@ -218,7 +242,10 @@ class MapParser:
                     raise ValueError(f"Line {line_nbr}: a zone accepts only one metadata block [...]")
                 if line.startswith("start_hub") or line.startswith("end_hub"):
                     current_max_drones = None
-                map_zone = Zone(name = name, coord_x = int(x), coord_y = int(y), color = current_color, max_drones = current_max_drones, zone_type = current_zone)                    
+                try:
+                    map_zone = Zone(name = name, coord_x = int(x), coord_y = int(y), color = current_color, max_drones = current_max_drones, zone_type = current_zone)
+                except ValueError:
+                    raise ValueError(f"Line {line_nbr}: invalid zone name '{name}' (dashes are not allowed)")                   
                 if name in self.zones:
                     raise ValueError(f"Line {line_nbr}: zone name '{name}' is duplicated")
                 self.zones[name] = map_zone  # since self.zones is a dict I assign the zone to the key(the key is whatever I seva in "name")

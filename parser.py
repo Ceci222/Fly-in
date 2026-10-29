@@ -101,7 +101,6 @@ class MapParser:
         drone_nbr_counter = 0
         start_hub_counter = 0
         end_hub_counter = 0
-        connection = 0
 
         with open(self.path, "r",
                   encoding="utf-8") as file:
@@ -166,12 +165,12 @@ class MapParser:
                     no_prefix_line = line.removeprefix("hub:")
                 elif line.startswith("connection"):
                     no_prefix_line = line.removeprefix("connection:")
-                    connection += 1
                     if "[" in line and "]" not in line:
                         raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
                     if "]" in line and "[" not in line:
                         raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
                     given_connection = no_prefix_line.split("[")
+                    max_capacity = 1  # default value in case none is given
                     if len(given_connection) == 2:
                         connection_name, connect_metadata = given_connection
                         connect_metadata = connect_metadata.rstrip("]")  # if theres no "]" strip doesn't fail, it just doesn't do anything
@@ -182,15 +181,18 @@ class MapParser:
                         if useless_prefix != "max_link_capacity":
                             raise ValueError(f"Line {line_nbr}: the only allowed connection metadata is 'max_link_capacity'")
                         try:
-                            if int(max_capacity) >= 1:
-                                max_capacity = int(max_capacity)
+                            max_capacity = int(max_capacity)
                         except ValueError:
+                            raise ValueError(f"Line {line_nbr}: 'max_link_capacity' needs to be a positive integer")
+                        if max_capacity < 1:
                             raise ValueError(f"Line {line_nbr}: 'max_link_capacity' needs to be a positive integer")
                         """if connection >= 1:
                             try:
                                 new_connection = Connection(connection_name, max_capacity)
                             except ValueError:
                                 raise ValueError(f"Line {line_nbr}: invalid zone name '{name}' (dashes are not allowed)") """
+                    elif len(given_connection) > 2:
+                        raise ValueError(f"Line {line_nbr}: a connection accepts only one metadata block [...]")
                     continue  # skips the rest of verifications for metadata which don't apply to connections, but do to other zones, and continues with the next turn of the lopp, otherwise it would fail
                 if "[" in line and "]" not in line:
                     raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")

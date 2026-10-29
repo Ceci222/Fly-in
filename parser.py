@@ -184,8 +184,11 @@ class MapParser:
                     max_capacity = 1  # default value in case none is given
                     
                     if len(given_connection) == 2:
-                        connection_name, connect_metadata = given_connection
+                        _, connect_metadata = given_connection
+                        if connect_metadata.count("]") != 1:
+                            raise ValueError(f"Line {line_nbr}: metadata block must have exactly one closing ']'")
                         connect_metadata = connect_metadata.rstrip("]")  # if theres no "]" strip doesn't fail, it just doesn't do anything
+                        connect_metadata = connect_metadata.strip()
                         connection_metadata = connect_metadata.split("=")
                         if len(connection_metadata) != 2:
                             raise ValueError(f"Line {line_nbr}: Metadata requires 'key=value' format")
@@ -198,16 +201,14 @@ class MapParser:
                             raise ValueError(f"Line {line_nbr}: 'max_link_capacity' needs to be a positive integer")
                         if max_capacity < 1:
                             raise ValueError(f"Line {line_nbr}: 'max_link_capacity' needs to be a positive integer")
-                        new_connection = Connection(path_a=connected_zone1, path_b=connected_zone2, max_link_capacity=max_capacity)
-                        
-                        for iterated_connection in self.connections:
-                            if (iterated_connection.path_a == connected_zone1 and iterated_connection.path_b == connected_zone2) or (iterated_connection.path_b == connected_zone1 and iterated_connection.path_a == connected_zone2):
-                                raise ValueError(f"Line {line_nbr}: connection '{connected_zone1}-{connected_zone2}' is duplicated")
-                        else:
-                            self.connections.append(new_connection)
-                        continue  
                     elif len(given_connection) > 2:
                         raise ValueError(f"Line {line_nbr}: a connection accepts only one metadata block [...]")
+                        
+                    for iterated_connection in self.connections:
+                        if (iterated_connection.path_a == connected_zone1 and iterated_connection.path_b == connected_zone2) or (iterated_connection.path_b == connected_zone1 and iterated_connection.path_a == connected_zone2):
+                            raise ValueError(f"Line {line_nbr}: connection '{connected_zone1}-{connected_zone2}' is duplicated")                       
+                    new_connection = Connection(path_a=connected_zone1, path_b=connected_zone2, max_link_capacity=max_capacity)
+                    self.connections.append(new_connection)
                     continue  # skips the rest of verifications for metadata which don't apply to connections, but do to other zones, and continues with the next turn of the lopp, otherwise it would fail
                 if "[" in line and "]" not in line:
                     raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")

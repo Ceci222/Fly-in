@@ -102,10 +102,12 @@ class MapParser:
         start_hub_counter = 0
         end_hub_counter = 0
 
-        with open(self.path, "r",
-                  encoding="utf-8") as file:
-            lines: list[tuple[int, str]] = list(enumerate(file, start=1))
-
+        try:
+            with open(self.path, "r",
+                    encoding="utf-8") as file:
+                lines: list[tuple[int, str]] = list(enumerate(file, start=1))
+        except OSError:  #for file system errors
+            raise ValueError(f"cannot open map file '{self.path}'")
         for line_nbr, line_text in lines:
             print(line_nbr, line_text.rstrip("\n"))
 
@@ -130,7 +132,11 @@ class MapParser:
                     raise ValueError(
                         f"line {line_nbr}: nb_drones must be a positive number")
                 else:
-                    self.nb_drones = int(self.nb_drones.lstrip())
+                    try: 
+                        self.nb_drones = int(self.nb_drones.lstrip())
+                    except ValueError:
+                        raise ValueError(f"Line {line_nbr}: nb_drones must be a positive number")
+                    
                     drone_nbr_counter += 1
                     if drone_nbr_counter > 1:
                         raise ValueError(
@@ -187,6 +193,8 @@ class MapParser:
                         _, connect_metadata = given_connection
                         if connect_metadata.count("]") != 1:
                             raise ValueError(f"Line {line_nbr}: metadata block must have exactly one closing ']'")
+                        if not connect_metadata.endswith("]"):
+                            raise ValueError(f"Line {line_nbr}: No characters should be present after metadata")
                         connect_metadata = connect_metadata.rstrip("]")  # if theres no "]" strip doesn't fail, it just doesn't do anything
                         connect_metadata = connect_metadata.strip()
                         connection_metadata = connect_metadata.split("=")
@@ -229,6 +237,10 @@ class MapParser:
                     raise ValueError(f"Line {line_nbr}: zone coordinates must be integers (got x='{x}', y='{y}')")
                 if len(given_zone) == 2:
                     metadata = given_zone[1].rstrip("]") #gotta remove the remaining bracket
+                    if not given_zone[1].endswith("]"):
+                        raise ValueError(f"Line {line_nbr}: No characters should be present after metadata")
+                    if given_zone[1].count("]") != 1:
+                        raise ValueError(f"Line {line_nbr}: metadata block must have exactly one closing ']'")
                     splitted_metadata = metadata.split()
                     if len(splitted_metadata) == 0:
                         raise ValueError(f"Line {line_nbr}: metadata block cannot be empty")

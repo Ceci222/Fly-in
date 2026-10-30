@@ -2,11 +2,13 @@
 from pydantic import BaseModel, Field, model_validator, ConfigDict, field_validator
 from enum import Enum
 
+
 class ZoneType(Enum):
     NORMAL = "normal"
     RESTRICTED = "restricted"
     BLOCKED = "blocked"
     PRIORITY = "priority"
+
 
 class Colors(Enum):
     BLACK = "black"
@@ -28,6 +30,7 @@ class Colors(Enum):
     YELLOW = "yellow"
     GRAY = "gray"
 
+
 class Zone(BaseModel):
     model_config = ConfigDict(strict=True)
     name: str = Field(min_length=1)
@@ -42,16 +45,16 @@ class Zone(BaseModel):
     # Despite having no field they are protected by strict=Tru,
     # no field 'cause admits any coordinate even negative
     color: Colors | None = None  # None by default
-    max_drones: int | None 
+    max_drones: int | None
     # max num of drone that can be in several areas at the same time
     zone_type: ZoneType = ZoneType.NORMAL
     # I pass the class attribute as a value
 
     # This is an intermediate step between passing a value for the color attribute and assigning it to the object
-    # It checks that the given value is within the enum accepted values. 
+    # It checks that the given value is within the enum accepted values.
     # If it is, it assigns the value to the attribute, else it raises an error
     # Returns something like Colors.GREEN and that's what's assigned to the attribute
-    @model_validator(mode="after") # receives the converted and validated object, then applies rules to it
+    @model_validator(mode="after")  # receives the converted and validated object, then applies rules to it
     def validate_input_name(self) -> "Zone":
         # pydantic requires full class to check it
         # and to return an object of that class
@@ -66,18 +69,19 @@ class Zone(BaseModel):
 # mode="after" is for after Pydandic's done validating fields, data types, etc... It either insatiates or doesn't
 # mode="before" is for "corrections". If there is something wrong I get to think of an alternative before the data type is
 # validated by pydantic. I either have what the enum allows, or I may provide an alternative value, for example.
-# It is a classmethod because the object doesn't exist yet, so it can't receive self 
+# It is a classmethod because the object doesn't exist yet, so it can't receive self
     @field_validator("color", mode="before")  # "color" the name of the field to be validated
     @classmethod  # There is no object yet, so no self can be received as an arg, just cls
-    def validate_color(cls,color: Colors | None = None) -> "Zone": # it doesn't admit a string but an object from the enum
-            if color is None:
-                return None
-            try:
-                return Colors(color) # if the color exists within the the enum it is returned, else the except takes over
-            except ValueError:
-                print("Since no valid color has been provided, none will be used")
-                return None
-        
+    def validate_color(cls, color: Colors | None = None) -> Colors | None:  # it doesn't admit a string but an object from the enum
+        if color is None:
+            return None
+        try:
+            return Colors(color)  # if the color exists within the the enum it is returned, else the except takes over
+        except ValueError:
+            print("Since no valid color has been provided, none will be used")
+            return None
+
+
 # model validator receives the whole object, field validator receives the field instead
 # it receives two params, the field on which it's applied and the execution mode
 # positional args should go before keyargs (syntax -> mode='after')
@@ -96,7 +100,6 @@ class MapParser:
         self.zones: dict = {}
         self.connections: list = []
 
-
     def parse(self) -> None:
         drone_nbr_counter = 0
         start_hub_counter = 0
@@ -104,9 +107,9 @@ class MapParser:
 
         try:
             with open(self.path, "r",
-                    encoding="utf-8") as file:
+                encoding="utf-8") as file:
                 lines: list[tuple[int, str]] = list(enumerate(file, start=1))
-        except OSError:  #for file system errors
+        except OSError:  # for file system errors
             raise ValueError(f"cannot open map file '{self.path}'")
         for line_nbr, line_text in lines:
             print(line_nbr, line_text.rstrip("\n"))
@@ -122,21 +125,21 @@ class MapParser:
             if not (line.startswith("nb_drones:") or line.startswith("start_hub:") or line.startswith("end_hub:") or line.startswith("connection:") or line.startswith("hub:")):
                 raise ValueError(f"Line {line_nbr}: unknown line type (expected nb_drones, start_hub, end_hub, hub or connection)")
             elif line.startswith("nb_drones:"):
-                self.nb_drones = line.removeprefix("nb_drones:")
-                if self.nb_drones.startswith(" "):
-                    self.nb_drones= self.nb_drones.lstrip()
-                if self.nb_drones == "":
+                str_nb_drones = line.removeprefix("nb_drones:")
+                if str_nb_drones.startswith(" "):
+                    str_nb_drones = str_nb_drones.lstrip()
+                if str_nb_drones == "":
                     raise ValueError(
                         f"line {line_nbr}: nb_drones has no value")
-                elif not self.nb_drones.isdigit():
+                elif not str_nb_drones.isdigit():
                     raise ValueError(
                         f"line {line_nbr}: nb_drones must be a positive number")
                 else:
-                    try: 
-                        self.nb_drones = int(self.nb_drones.lstrip())
+                    try:
+                        self.nb_drones = int(str_nb_drones.lstrip())
                     except ValueError:
                         raise ValueError(f"Line {line_nbr}: nb_drones must be a positive number")
-                    
+
                     drone_nbr_counter += 1
                     if drone_nbr_counter > 1:
                         raise ValueError(
@@ -152,14 +155,14 @@ class MapParser:
             elif line.startswith("start_hub:") or line.startswith("end_hub:") or line.startswith("connection:") or line.startswith("hub:"):
                 if drone_nbr_counter != 1:
                     raise ValueError(f"Line {line_nbr}: nb_drones must be on the first line")
-                
+
                 current_color = None
-                current_max_drones = 1
+                current_max_drones: int | None = 1
                 current_zone = ZoneType.NORMAL
 
                 if line.startswith("start_hub"):
                     no_prefix_line = line.removeprefix("start_hub:")
-                    start_hub_counter +=1
+                    start_hub_counter += 1
                     if start_hub_counter > 1:
                         raise ValueError(f"Line {line_nbr}: start_hub seems to appear more than once in the map")
                 elif line.startswith("end_hub"):
@@ -180,15 +183,15 @@ class MapParser:
                     if len(connected_zone_names) != 2:
                         raise ValueError(f"Line {line_nbr}: a connection needs two zone names separated by '-'")
                     connected_zone1, connected_zone2 = connected_zone_names
-                    connected_zone1 =  connected_zone1.strip()
-                    connected_zone2 =  connected_zone2.strip()
+                    connected_zone1 = connected_zone1.strip()
+                    connected_zone2 = connected_zone2.strip()
                     if connected_zone1 not in self.zones or connected_zone2 not in self.zones:
                         raise ValueError(f"Line {line_nbr}: Connections must link two previously existing zones")
                     if connected_zone1 == connected_zone2:
                         raise ValueError(f"Line {line_nbr}: Connected zones must have different names")
-                    
+
                     max_capacity = 1  # default value in case none is given
-                    
+
                     if len(given_connection) == 2:
                         _, connect_metadata = given_connection
                         if connect_metadata.count("]") != 1:
@@ -200,21 +203,21 @@ class MapParser:
                         connection_metadata = connect_metadata.split("=")
                         if len(connection_metadata) != 2:
                             raise ValueError(f"Line {line_nbr}: Metadata requires 'key=value' format")
-                        useless_prefix, max_capacity =  connection_metadata
+                        useless_prefix, str_max_capacity = connection_metadata
                         if useless_prefix != "max_link_capacity":
                             raise ValueError(f"Line {line_nbr}: the only allowed connection metadata is 'max_link_capacity'")
                         try:
-                            max_capacity = int(max_capacity)
+                            max_capacity = int(str_max_capacity)
                         except ValueError:
                             raise ValueError(f"Line {line_nbr}: 'max_link_capacity' needs to be a positive integer")
                         if max_capacity < 1:
                             raise ValueError(f"Line {line_nbr}: 'max_link_capacity' needs to be a positive integer")
                     elif len(given_connection) > 2:
                         raise ValueError(f"Line {line_nbr}: a connection accepts only one metadata block [...]")
-                        
+
                     for iterated_connection in self.connections:
                         if (iterated_connection.path_a == connected_zone1 and iterated_connection.path_b == connected_zone2) or (iterated_connection.path_b == connected_zone1 and iterated_connection.path_a == connected_zone2):
-                            raise ValueError(f"Line {line_nbr}: connection '{connected_zone1}-{connected_zone2}' is duplicated")                       
+                            raise ValueError(f"Line {line_nbr}: connection '{connected_zone1}-{connected_zone2}' is duplicated")
                     new_connection = Connection(path_a=connected_zone1, path_b=connected_zone2, max_link_capacity=max_capacity)
                     self.connections.append(new_connection)
                     continue  # skips the rest of verifications for metadata which don't apply to connections, but do to other zones, and continues with the next turn of the lopp, otherwise it would fail
@@ -236,7 +239,7 @@ class MapParser:
                 except ValueError:
                     raise ValueError(f"Line {line_nbr}: zone coordinates must be integers (got x='{x}', y='{y}')")
                 if len(given_zone) == 2:
-                    metadata = given_zone[1].rstrip("]") #gotta remove the remaining bracket
+                    metadata = given_zone[1].rstrip("]")  # gotta remove the remaining bracket
                     if not given_zone[1].endswith("]"):
                         raise ValueError(f"Line {line_nbr}: No characters should be present after metadata")
                     if given_zone[1].count("]") != 1:
@@ -246,14 +249,20 @@ class MapParser:
                         raise ValueError(f"Line {line_nbr}: metadata block cannot be empty")
                     if len(splitted_metadata) > 3:
                         raise ValueError(f"Line {line_nbr}: a zone accepts at most 3 metadata tags (zone, color, max_drones)")
+                    seen_keys: list = []
                     for data in splitted_metadata:
                         parts = data.split("=")
                         if len(parts) != 2:
                             raise ValueError(f"Line {line_nbr}: Metadata requires 'key=value' format")
                         key, value = parts  # destructres for every turn, every data in the loop
+                        if key in seen_keys:
+                            raise ValueError(f"Line {line_nbr}: metadata '{key}' appears more than once")
+                        seen_keys.append(key)
                         if "color" == key:
-                            current_color = value # Must have been set to none inictially so it doesn't break when insatantiated
-                            # Can't be Colors(value) because this is castin not instantiation so it would try to turn to Enum something that's not on the list
+                            try:
+                                current_color = Colors(value)
+                            except ValueError:
+                                print("Since no valid color has been provided, none will be used")
                         elif "zone" == key:
                             try:
                                 current_zone = ZoneType(value)
@@ -273,23 +282,25 @@ class MapParser:
                 if line.startswith("start_hub") or line.startswith("end_hub"):
                     current_max_drones = None
                 try:
-                    map_zone = Zone(name = name, coord_x = int(x), coord_y = int(y), color = current_color, max_drones = current_max_drones, zone_type = current_zone)
+                    map_zone = Zone(name=name, coord_x=int(x), coord_y=int(y), color=current_color, max_drones=current_max_drones, zone_type=current_zone)
                 except ValueError:
-                    raise ValueError(f"Line {line_nbr}: invalid zone name '{name}' (dashes are not allowed)")                   
+                    raise ValueError(f"Line {line_nbr}: invalid zone name '{name}' (dashes are not allowed)")
                 if name in self.zones:
                     raise ValueError(f"Line {line_nbr}: zone name '{name}' is duplicated")
                 self.zones[name] = map_zone  # since self.zones is a dict I assign the zone to the key(the key is whatever I seva in "name")
-        
+
         if drone_nbr_counter == 0:
             raise ValueError("nb_drones is missing")
         if start_hub_counter == 0:
             raise ValueError("start_hub is missing")
         if end_hub_counter == 0:
             raise ValueError("end_hub is missing")
-        
-def main()-> None:
+
+
+def main() -> None:
     map = MapParser("maps/medium/01_dead_end_trap.txt")
     map.parse()
 
-if __name__== "__main__":
+
+if __name__ == "__main__":
     main()

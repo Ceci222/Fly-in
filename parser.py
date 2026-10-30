@@ -1,5 +1,6 @@
 
-from pydantic import BaseModel, Field, model_validator, ConfigDict, field_validator
+from pydantic import (BaseModel, Field, model_validator, ConfigDict,
+                      field_validator)
 from enum import Enum
 
 
@@ -50,11 +51,14 @@ class Zone(BaseModel):
     zone_type: ZoneType = ZoneType.NORMAL
     # I pass the class attribute as a value
 
-    # This is an intermediate step between passing a value for the color attribute and assigning it to the object
+    # This is an intermediate step between passing a value for the color
+    # attribute and assigning it to the object
     # It checks that the given value is within the enum accepted values.
     # If it is, it assigns the value to the attribute, else it raises an error
-    # Returns something like Colors.GREEN and that's what's assigned to the attribute
-    @model_validator(mode="after")  # receives the converted and validated object, then applies rules to it
+    # Returns something like Colors.GREEN and that's what's assigned to the
+    # attribute
+    @model_validator(mode="after")  # receives the converted and validated
+    # object, then applies rules to it
     def validate_input_name(self) -> "Zone":
         # pydantic requires full class to check it
         # and to return an object of that class
@@ -64,29 +68,41 @@ class Zone(BaseModel):
             raise ValueError("Input name cannot contain '-' nor ' '.")
         return self  # the validated instance must be returned
 
-# The decorator decides when the function runs, either before the type validation or after
+# The decorator decides when the function runs, either before the type
+# validation or after
 # The instatiation is not over until the validation is complete
-# mode="after" is for after Pydandic's done validating fields, data types, etc... It either insatiates or doesn't
-# mode="before" is for "corrections". If there is something wrong I get to think of an alternative before the data type is
-# validated by pydantic. I either have what the enum allows, or I may provide an alternative value, for example.
-# It is a classmethod because the object doesn't exist yet, so it can't receive self
-    @field_validator("color", mode="before")  # "color" the name of the field to be validated
-    @classmethod  # There is no object yet, so no self can be received as an arg, just cls
-    def validate_color(cls, color: Colors | None = None) -> Colors | None:  # it doesn't admit a string but an object from the enum
+# mode="after" is for after Pydandic's done validating fields, data types,
+# etc... It either insatiates or doesn't
+# mode="before" is for "corrections". If there is something wrong I get to
+# think of an alternative before the data type is
+# validated by pydantic. I either have what the enum allows, or I may
+# provide an alternative value, for example.
+# It is a classmethod because the object doesn't exist yet, so it can't
+# receive self
+    @field_validator("color", mode="before")  # "color" the name of the
+    # field to be validated
+    @classmethod  # There is no object yet, so no self can be received as
+    # an arg, just cls
+    def validate_color(cls, color: Colors | None = None) -> Colors | None:
+        # it doesn't admit a string but an object from the enum
         if color is None:
             return None
         try:
-            return Colors(color)  # if the color exists within the the enum it is returned, else the except takes over
+            return Colors(color)  # if the color exists within the the enum
+            # it is returned, else the except takes over
         except ValueError:
             print("Since no valid color has been provided, none will be used")
             return None
 
 
-# model validator receives the whole object, field validator receives the field instead
-# it receives two params, the field on which it's applied and the execution mode
+# model validator receives the whole object, field validator receives the
+# field instead
+# it receives two params, the field on which it's applied and the
+# execution mode
 # positional args should go before keyargs (syntax -> mode='after')
 class Connection(BaseModel):
-    model_config = ConfigDict(strict=True)  # pydantic stric, not automatic data casting
+    model_config = ConfigDict(strict=True)  # pydantic stric, not automatic
+    # data casting
     path_a: str = Field(min_length=1)
     path_b: str = Field(min_length=1)
     max_link_capacity: int = Field(default=1, gt=0)
@@ -97,8 +113,8 @@ class MapParser:
     def __init__(self, path: str) -> None:
         self.path = path  # comes from the map, the rest have already been set
         self.nb_drones: int = 0
-        self.zones: dict = {}
-        self.connections: list = []
+        self.zones: dict[str, Zone] = {}
+        self.connections: list[Connection] = []
 
     def parse(self) -> None:
         drone_nbr_counter = 0
@@ -107,7 +123,7 @@ class MapParser:
 
         try:
             with open(self.path, "r",
-                encoding="utf-8") as file:
+                      encoding="utf-8") as file:
                 lines: list[tuple[int, str]] = list(enumerate(file, start=1))
         except OSError:  # for file system errors
             raise ValueError(f"cannot open map file '{self.path}'")
@@ -122,8 +138,14 @@ class MapParser:
                 continue
             if line.startswith("#"):
                 continue
-            if not (line.startswith("nb_drones:") or line.startswith("start_hub:") or line.startswith("end_hub:") or line.startswith("connection:") or line.startswith("hub:")):
-                raise ValueError(f"Line {line_nbr}: unknown line type (expected nb_drones, start_hub, end_hub, hub or connection)")
+            if not (line.startswith("nb_drones:") or (
+                    line.startswith("start_hub:")) or (
+                    line.startswith("end_hub:")) or (
+                    line.startswith("connection:")) or (
+                    line.startswith("hub:"))):
+                raise ValueError(
+                    f"Line {line_nbr}: unknown line type (expected "
+                    f"nb_drones, start_hub, end_hub, hub or connection)")
             elif line.startswith("nb_drones:"):
                 str_nb_drones = line.removeprefix("nb_drones:")
                 if str_nb_drones.startswith(" "):
@@ -133,12 +155,15 @@ class MapParser:
                         f"line {line_nbr}: nb_drones has no value")
                 elif not str_nb_drones.isdigit():
                     raise ValueError(
-                        f"line {line_nbr}: nb_drones must be a positive number")
+                        f"line {line_nbr}: nb_drones must be a positive "
+                        f"number")
                 else:
                     try:
                         self.nb_drones = int(str_nb_drones.lstrip())
                     except ValueError:
-                        raise ValueError(f"Line {line_nbr}: nb_drones must be a positive number")
+                        raise ValueError(
+                            f"Line {line_nbr}: nb_drones must be a positive "
+                            f"number")
 
                     drone_nbr_counter += 1
                     if drone_nbr_counter > 1:
@@ -150,11 +175,17 @@ class MapParser:
                             f"line {line_nbr}: nb_drones must be a positive "
                             f"value")
             # line_nbr is just and iteration avriable, the created "index"
-            # is just temporary within the for loop. It cannot be accessed form outside the loop
+            # is just temporary within the for loop. It cannot be accessed
+            # form outside the loop
                     print(f"Nb or drones: {self.nb_drones}")
-            elif line.startswith("start_hub:") or line.startswith("end_hub:") or line.startswith("connection:") or line.startswith("hub:"):
+            elif (line.startswith("start_hub:") or (
+                    line.startswith("end_hub:")) or (
+                    line.startswith("connection:")) or (
+                    line.startswith("hub:"))):
                 if drone_nbr_counter != 1:
-                    raise ValueError(f"Line {line_nbr}: nb_drones must be on the first line")
+                    raise ValueError(
+                        f"Line {line_nbr}: nb_drones must be on the first "
+                        f"line")
 
                 current_color = None
                 current_max_drones: int | None = 1
@@ -164,130 +195,221 @@ class MapParser:
                     no_prefix_line = line.removeprefix("start_hub:")
                     start_hub_counter += 1
                     if start_hub_counter > 1:
-                        raise ValueError(f"Line {line_nbr}: start_hub seems to appear more than once in the map")
+                        raise ValueError(
+                            f"Line {line_nbr}: start_hub seems to appear "
+                            f"more than once in the map")
                 elif line.startswith("end_hub"):
                     no_prefix_line = line.removeprefix("end_hub:")
                     end_hub_counter += 1
                     if end_hub_counter > 1:
-                        raise ValueError(f"Line {line_nbr}: end_hub seems to appear more than once in the map")
+                        raise ValueError(
+                            f"Line {line_nbr}: end_hub seems to appear "
+                            f"more than once in the map")
                 elif line.startswith("hub"):
                     no_prefix_line = line.removeprefix("hub:")
                 elif line.startswith("connection"):
                     no_prefix_line = line.removeprefix("connection:")
                     if "[" in line and "]" not in line:
-                        raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
+                        raise ValueError(
+                            f"Line {line_nbr}: Metadata must be between '[]'")
                     if "]" in line and "[" not in line:
-                        raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
+                        raise ValueError(
+                            f"Line {line_nbr}: Metadata must be between '[]'")
                     given_connection = no_prefix_line.split("[")
                     connected_zone_names = given_connection[0].split("-")
                     if len(connected_zone_names) != 2:
-                        raise ValueError(f"Line {line_nbr}: a connection needs two zone names separated by '-'")
+                        raise ValueError(
+                            f"Line {line_nbr}: a connection needs two zone "
+                            f"names separated by '-'")
                     connected_zone1, connected_zone2 = connected_zone_names
                     connected_zone1 = connected_zone1.strip()
                     connected_zone2 = connected_zone2.strip()
-                    if connected_zone1 not in self.zones or connected_zone2 not in self.zones:
-                        raise ValueError(f"Line {line_nbr}: Connections must link two previously existing zones")
+                    if (connected_zone1 not in self.zones or (
+                            connected_zone2 not in self.zones)):
+                        raise ValueError(
+                            f"Line {line_nbr}: Connections must link two "
+                            f"previously existing zones")
                     if connected_zone1 == connected_zone2:
-                        raise ValueError(f"Line {line_nbr}: Connected zones must have different names")
+                        raise ValueError(
+                            f"Line {line_nbr}: Connected zones must have "
+                            f"different names")
 
                     max_capacity = 1  # default value in case none is given
 
                     if len(given_connection) == 2:
                         _, connect_metadata = given_connection
                         if connect_metadata.count("]") != 1:
-                            raise ValueError(f"Line {line_nbr}: metadata block must have exactly one closing ']'")
+                            raise ValueError(
+                                f"Line {line_nbr}: metadata block must have "
+                                f"exactly one closing ']'")
                         if not connect_metadata.endswith("]"):
-                            raise ValueError(f"Line {line_nbr}: No characters should be present after metadata")
-                        connect_metadata = connect_metadata.rstrip("]")  # if theres no "]" strip doesn't fail, it just doesn't do anything
+                            raise ValueError(
+                                f"Line {line_nbr}: No characters should be "
+                                f"present after metadata")
+                        # if theres no "]" strip doesn't fail, it just doesn't
+                        # do anything
+                        connect_metadata = connect_metadata.rstrip("]")
                         connect_metadata = connect_metadata.strip()
                         connection_metadata = connect_metadata.split("=")
                         if len(connection_metadata) != 2:
-                            raise ValueError(f"Line {line_nbr}: Metadata requires 'key=value' format")
+                            raise ValueError(
+                                f"Line {line_nbr}: Metadata requires "
+                                f"'key=value' format")
                         useless_prefix, str_max_capacity = connection_metadata
                         if useless_prefix != "max_link_capacity":
-                            raise ValueError(f"Line {line_nbr}: the only allowed connection metadata is 'max_link_capacity'")
+                            raise ValueError(
+                                f"Line {line_nbr}: the only allowed "
+                                f"connection metadata is 'max_link_capacity'")
                         try:
                             max_capacity = int(str_max_capacity)
                         except ValueError:
-                            raise ValueError(f"Line {line_nbr}: 'max_link_capacity' needs to be a positive integer")
+                            raise ValueError(
+                                f"Line {line_nbr}: 'max_link_capacity' "
+                                f"needs to be a positive integer")
                         if max_capacity < 1:
-                            raise ValueError(f"Line {line_nbr}: 'max_link_capacity' needs to be a positive integer")
+                            raise ValueError(
+                                f"Line {line_nbr}: 'max_link_capacity' "
+                                f"needs to be a positive integer")
                     elif len(given_connection) > 2:
-                        raise ValueError(f"Line {line_nbr}: a connection accepts only one metadata block [...]")
+                        raise ValueError(
+                            f"Line {line_nbr}: a connection accepts only "
+                            f"one metadata block [...]")
 
                     for iterated_connection in self.connections:
-                        if (iterated_connection.path_a == connected_zone1 and iterated_connection.path_b == connected_zone2) or (iterated_connection.path_b == connected_zone1 and iterated_connection.path_a == connected_zone2):
-                            raise ValueError(f"Line {line_nbr}: connection '{connected_zone1}-{connected_zone2}' is duplicated")
-                    new_connection = Connection(path_a=connected_zone1, path_b=connected_zone2, max_link_capacity=max_capacity)
+                        if (
+                                iterated_connection.path_a == connected_zone1
+                        ) and (
+                                iterated_connection.path_b == connected_zone2
+                        ) or (
+                                iterated_connection.path_b == connected_zone1
+                        ) and (
+                                iterated_connection.path_a == connected_zone2
+                        ):
+                            raise ValueError(
+                                f"Line {line_nbr}: connection "
+                                f"'{connected_zone1}-{connected_zone2}' "
+                                f"is duplicated")
+                    new_connection = Connection(
+                        path_a=connected_zone1, path_b=connected_zone2,
+                        max_link_capacity=max_capacity)
                     self.connections.append(new_connection)
-                    continue  # skips the rest of verifications for metadata which don't apply to connections, but do to other zones, and continues with the next turn of the lopp, otherwise it would fail
+                    continue  # skips the rest of verifications for metadata
+                    # which don't apply to connections, but do to other zones,
+                    # and continues with the next turn of the lopp, otherwise
+                    # it would fail
                 if "[" in line and "]" not in line:
-                    raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
+                    raise ValueError(
+                        f"Line {line_nbr}: Metadata must be between '[]'")
                 if "]" in line and "[" not in line:
-                    raise ValueError(f"Line {line_nbr}: Metadata must be between '[]'")
-                given_zone = no_prefix_line.split("[")  # returns a list of 2 elements, whatever was pre and post "["
+                    raise ValueError(
+                        f"Line {line_nbr}: Metadata must be between '[]'")
+                given_zone = no_prefix_line.split("[")  # returns a list of 2
+                # elements, whatever was pre and post "["
                 coord_and_name = given_zone[0].split()
                 if len(coord_and_name) != 3:
-                    raise ValueError(f"Line {line_nbr}: a zone needs a name and two coordinates (got {len(coord_and_name)} values)")
+                    raise ValueError(
+                        f"Line {line_nbr}: a zone needs a name and two "
+                        f"coordinates (got {len(coord_and_name)} values)")
                 name, x, y = coord_and_name
                 try:
                     int(x)
                 except ValueError:
-                    raise ValueError(f"Line {line_nbr}: zone coordinates must be integers (got x='{x}', y='{y}')")
+                    raise ValueError(
+                        f"Line {line_nbr}: zone coordinates must be "
+                        f"integers (got x='{x}', y='{y}')")
                 try:
                     int(y)
                 except ValueError:
-                    raise ValueError(f"Line {line_nbr}: zone coordinates must be integers (got x='{x}', y='{y}')")
+                    raise ValueError(
+                        f"Line {line_nbr}: zone coordinates must be "
+                        f"integers (got x='{x}', y='{y}')")
                 if len(given_zone) == 2:
-                    metadata = given_zone[1].rstrip("]")  # gotta remove the remaining bracket
+                    metadata = given_zone[1].rstrip("]")  # gotta remove the
+                    # remaining bracket
                     if not given_zone[1].endswith("]"):
-                        raise ValueError(f"Line {line_nbr}: No characters should be present after metadata")
+                        raise ValueError(
+                            f"Line {line_nbr}: No characters should be "
+                            f"present after metadata")
                     if given_zone[1].count("]") != 1:
-                        raise ValueError(f"Line {line_nbr}: metadata block must have exactly one closing ']'")
+                        raise ValueError(
+                            f"Line {line_nbr}: metadata block must have "
+                            f"exactly one closing ']'")
                     splitted_metadata = metadata.split()
                     if len(splitted_metadata) == 0:
-                        raise ValueError(f"Line {line_nbr}: metadata block cannot be empty")
+                        raise ValueError(
+                            f"Line {line_nbr}: metadata block cannot be empty")
                     if len(splitted_metadata) > 3:
-                        raise ValueError(f"Line {line_nbr}: a zone accepts at most 3 metadata tags (zone, color, max_drones)")
-                    seen_keys: list = []
+                        raise ValueError(
+                            f"Line {line_nbr}: a zone accepts at most 3 "
+                            f"metadata tags (zone, color, max_drones)")
+                    seen_keys: list[str] = []
                     for data in splitted_metadata:
                         parts = data.split("=")
                         if len(parts) != 2:
-                            raise ValueError(f"Line {line_nbr}: Metadata requires 'key=value' format")
-                        key, value = parts  # destructres for every turn, every data in the loop
+                            raise ValueError(
+                                f"Line {line_nbr}: Metadata requires "
+                                f"'key=value' format")
+                        key, value = parts  # destructres for every turn,
+                        # every data in the loop
                         if key in seen_keys:
-                            raise ValueError(f"Line {line_nbr}: metadata '{key}' appears more than once")
+                            raise ValueError(
+                                f"Line {line_nbr}: metadata '{key}' appears "
+                                f"more than once")
                         seen_keys.append(key)
                         if "color" == key:
                             try:
                                 current_color = Colors(value)
                             except ValueError:
-                                print("Since no valid color has been provided, none will be used")
+                                print("Since no valid color has been "
+                                      "provided, none will be used")
                         elif "zone" == key:
                             try:
                                 current_zone = ZoneType(value)
                             except ValueError:
-                                raise ValueError(f"Line {line_nbr}: invalid zone type '{value}' (expected normal, blocked, restricted or priority)")
+                                raise ValueError(
+                                    f"Line {line_nbr}: invalid zone type "
+                                    f"'{value}' (expected normal, blocked, "
+                                    f"restricted or priority)")
                         elif "max_drones" == key:
                             try:
-                                current_max_drones = int(value)  # because with model_config = ConfigDict(strict=True) pydantic no loger casts by default
+                                # because with model_config =
+                                # ConfigDict(strict=True) pydantic no loger
+                                # casts by default
+                                current_max_drones = int(value)
                             except ValueError:
-                                raise ValueError(f"Line {line_nbr}: max_drones must be a positive integer (got '{value}')")
-                            if current_max_drones <= 0 and line.startswith("hub"):
-                                raise ValueError(f"Line {line_nbr}: max_drones must be a positive integer")
+                                raise ValueError(
+                                    f"Line {line_nbr}: max_drones must be a "
+                                    f"positive integer (got '{value}')")
+                            if current_max_drones <= 0 and (
+                                    line.startswith("hub")):
+                                raise ValueError(
+                                    f"Line {line_nbr}: max_drones must be a "
+                                    f"positive integer")
                         else:
-                            raise ValueError(f"line {line_nbr}: The allowed metadata includes 'color', 'zone', 'max_drones'")
+                            raise ValueError(
+                                f"line {line_nbr}: The allowed metadata "
+                                f"includes 'color', 'zone', 'max_drones'")
                 elif len(given_zone) > 2:
-                    raise ValueError(f"Line {line_nbr}: a zone accepts only one metadata block [...]")
+                    raise ValueError(
+                        f"Line {line_nbr}: a zone accepts only one "
+                        f"metadata block [...]")
                 if line.startswith("start_hub") or line.startswith("end_hub"):
                     current_max_drones = None
                 try:
-                    map_zone = Zone(name=name, coord_x=int(x), coord_y=int(y), color=current_color, max_drones=current_max_drones, zone_type=current_zone)
+                    map_zone = Zone(
+                        name=name, coord_x=int(x), coord_y=int(y),
+                        color=current_color, max_drones=current_max_drones,
+                        zone_type=current_zone)
                 except ValueError:
-                    raise ValueError(f"Line {line_nbr}: invalid zone name '{name}' (dashes are not allowed)")
+                    raise ValueError(
+                        f"Line {line_nbr}: invalid zone name '{name}' "
+                        f"(dashes are not allowed)")
                 if name in self.zones:
-                    raise ValueError(f"Line {line_nbr}: zone name '{name}' is duplicated")
-                self.zones[name] = map_zone  # since self.zones is a dict I assign the zone to the key(the key is whatever I seva in "name")
+                    raise ValueError(
+                        f"Line {line_nbr}: zone name '{name}' is duplicated")
+                self.zones[name] = map_zone  # since self.zones is a dict I
+                # assign the zone to the key(the key is whatever I seva in
+                # "name")
 
         if drone_nbr_counter == 0:
             raise ValueError("nb_drones is missing")

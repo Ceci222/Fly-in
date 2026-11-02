@@ -359,11 +359,14 @@ class MapParser:
                                 f"more than once")
                         seen_keys.append(key)
                         if "color" == key:
+                            if not value.isalpha():
+                                raise ValueError(
+                                    f"Line {line_nbr}: color must be a single "
+                                    f"word made of letters (got '{value}')")
                             try:
                                 current_color = Colors(value.lower())
                             except ValueError:
-                                print("Since no valid color has been "
-                                      "provided, none will be used")
+                                current_color = Colors.GRAY
                         elif "zone" == key:
                             try:
                                 current_zone = ZoneType(value)

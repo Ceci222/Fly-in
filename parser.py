@@ -1,6 +1,5 @@
 
-from pydantic import (BaseModel, Field, model_validator, ConfigDict,
-                      field_validator)
+from pydantic import (BaseModel, Field, model_validator, ConfigDict)
 from enum import Enum
 
 
@@ -79,6 +78,9 @@ class Zone(BaseModel):
 # provide an alternative value, for example.
 # It is a classmethod because the object doesn't exist yet, so it can't
 # receive self
+
+
+"""
     @field_validator("color", mode="before")  # "color" the name of the
     # field to be validated
     @classmethod  # There is no object yet, so no self can be received as
@@ -92,7 +94,7 @@ class Zone(BaseModel):
             # it is returned, else the except takes over
         except ValueError:
             print("Since no valid color has been provided, none will be used")
-            return None
+            return None"""
 
 
 # model validator receives the whole object, field validator receives the
@@ -127,6 +129,9 @@ class MapParser:
                 lines: list[tuple[int, str]] = list(enumerate(file, start=1))
         except OSError:  # for file system errors
             raise ValueError(f"cannot open map file '{self.path}'")
+        except UnicodeDecodeError:
+            raise ValueError(f"cannot read map file '{self.path}' "
+                             f"(it is not valid UTF-8)")
         for line_nbr, line_text in lines:
             print(line_nbr, line_text.rstrip("\n"))
 
@@ -152,10 +157,10 @@ class MapParser:
                     str_nb_drones = str_nb_drones.lstrip()
                 if str_nb_drones == "":
                     raise ValueError(
-                        f"line {line_nbr}: nb_drones has no value")
+                        f"Line {line_nbr}: nb_drones has no value")
                 elif not str_nb_drones.isdigit():
                     raise ValueError(
-                        f"line {line_nbr}: nb_drones must be a positive "
+                        f"Line {line_nbr}: nb_drones must be a positive "
                         f"number")
                 else:
                     try:
@@ -168,11 +173,11 @@ class MapParser:
                     drone_nbr_counter += 1
                     if drone_nbr_counter > 1:
                         raise ValueError(
-                            f"line {line_nbr}: nb_drones has already been "
+                            f"Line {line_nbr}: nb_drones has already been "
                             f"declared")
                     if self.nb_drones <= 0:
                         raise ValueError(
-                            f"line {line_nbr}: nb_drones must be a positive "
+                            f"Line {line_nbr}: nb_drones must be a positive "
                             f"value")
             # line_nbr is just and iteration avriable, the created "index"
             # is just temporary within the for loop. It cannot be accessed
@@ -358,7 +363,7 @@ class MapParser:
                         seen_keys.append(key)
                         if "color" == key:
                             try:
-                                current_color = Colors(value)
+                                current_color = Colors(value.lower())
                             except ValueError:
                                 print("Since no valid color has been "
                                       "provided, none will be used")
@@ -387,7 +392,7 @@ class MapParser:
                                     f"positive integer")
                         else:
                             raise ValueError(
-                                f"line {line_nbr}: The allowed metadata "
+                                f"Line {line_nbr}: The allowed metadata "
                                 f"includes 'color', 'zone', 'max_drones'")
                 elif len(given_zone) > 2:
                     raise ValueError(

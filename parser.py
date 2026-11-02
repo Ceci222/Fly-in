@@ -132,8 +132,6 @@ class MapParser:
         except UnicodeDecodeError:
             raise ValueError(f"cannot read map file '{self.path}' "
                              f"(it is not valid UTF-8)")
-        for line_nbr, line_text in lines:
-            print(line_nbr, line_text.rstrip("\n"))
 
         for line_nbr, line_text in lines:
             line = line_text.strip()
@@ -182,7 +180,6 @@ class MapParser:
             # line_nbr is just and iteration avriable, the created "index"
             # is just temporary within the for loop. It cannot be accessed
             # form outside the loop
-                    print(f"Nb or drones: {self.nb_drones}")
             elif (line.startswith("start_hub:") or (
                     line.startswith("end_hub:")) or (
                     line.startswith("connection:")) or (

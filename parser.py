@@ -423,11 +423,3 @@ class MapParser:
         if end_hub_counter == 0:
             raise ValueError("end_hub is missing")
 
-
-def main() -> None:
-    map = MapParser("maps/medium/01_dead_end_trap.txt")
-    map.parse()
-
-
-if __name__ == "__main__":
-    main()

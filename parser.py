@@ -299,8 +299,8 @@ class MapParser:
                                 f"'{joined_zone1}-{joined_zone2}' "
                                 f"is duplicated")
                     new_connection = Connection(
-                        joined_zone_a = joined_zone1, 
-                        joined_zone_b = joined_zone2,
+                        joined_zone_a=joined_zone1,
+                        joined_zone_b=joined_zone2,
                         max_link_capacity=max_capacity)
                     self.connections.append(new_connection)
                     continue  # skips the rest of verifications for metadata
@@ -322,9 +322,9 @@ class MapParser:
                         f"coordinates (got {len(coord_and_name)} values)")
                 name, x, y = coord_and_name
                 if line.startswith("start_hub"):
-                    self.start_hub_name = line[0]
+                    self.start_hub_name = name
                 if line.startswith("end_hub"):
-                    self.end_hub_name = line[0]
+                    self.end_hub_name = name
                 try:
                     int(x)
                 except ValueError:

@@ -105,8 +105,8 @@ class Zone(BaseModel):
 class Connection(BaseModel):
     model_config = ConfigDict(strict=True)  # pydantic stric, not automatic
     # data casting
-    path_a: str = Field(min_length=1)
-    path_b: str = Field(min_length=1)
+    joined_zone_a: str = Field(min_length=1)
+    joined_zone_b: str = Field(min_length=1)
     max_link_capacity: int = Field(default=1, gt=0)
     # nbr of drones crossing at the same time
 
@@ -117,6 +117,8 @@ class MapParser:
         self.nb_drones: int = 0
         self.zones: dict[str, Zone] = {}
         self.connections: list[Connection] = []
+        self.start_hub_name: str = ""
+        self.end_hub_name: str = ""
 
     def parse(self) -> None:
         drone_nbr_counter = 0
@@ -159,14 +161,14 @@ class MapParser:
                 elif not str_nb_drones.isdigit():
                     raise ValueError(
                         f"Line {line_nbr}: nb_drones must be a positive "
-                        f"number")
+                        f"integer")
                 else:
                     try:
                         self.nb_drones = int(str_nb_drones.lstrip())
                     except ValueError:
                         raise ValueError(
                             f"Line {line_nbr}: nb_drones must be a positive "
-                            f"number")
+                            f"integer")
 
                     drone_nbr_counter += 1
                     if drone_nbr_counter > 1:
@@ -218,20 +220,20 @@ class MapParser:
                         raise ValueError(
                             f"Line {line_nbr}: Metadata must be between '[]'")
                     given_connection = no_prefix_line.split("[")
-                    connected_zone_names = given_connection[0].split("-")
-                    if len(connected_zone_names) != 2:
+                    joined_zone_names = given_connection[0].split("-")
+                    if len(joined_zone_names) != 2:
                         raise ValueError(
                             f"Line {line_nbr}: a connection needs two zone "
                             f"names separated by '-'")
-                    connected_zone1, connected_zone2 = connected_zone_names
-                    connected_zone1 = connected_zone1.strip()
-                    connected_zone2 = connected_zone2.strip()
-                    if (connected_zone1 not in self.zones or (
-                            connected_zone2 not in self.zones)):
+                    joined_zone1, joined_zone2 = joined_zone_names
+                    joined_zone1 = joined_zone1.strip()
+                    joined_zone2 = joined_zone2.strip()
+                    if (joined_zone1 not in self.zones or (
+                            joined_zone2 not in self.zones)):
                         raise ValueError(
                             f"Line {line_nbr}: Connections must link two "
                             f"previously existing zones")
-                    if connected_zone1 == connected_zone2:
+                    if joined_zone1 == joined_zone2:
                         raise ValueError(
                             f"Line {line_nbr}: Connected zones must have "
                             f"different names")
@@ -258,10 +260,15 @@ class MapParser:
                                 f"Line {line_nbr}: Metadata requires "
                                 f"'key=value' format")
                         useless_prefix, str_max_capacity = connection_metadata
+
                         if useless_prefix != "max_link_capacity":
                             raise ValueError(
                                 f"Line {line_nbr}: the only allowed "
                                 f"connection metadata is 'max_link_capacity'")
+                        if not str_max_capacity.isdigit():
+                            raise ValueError(
+                                f"Line {line_nbr}: 'max_link_capacity' "
+                                f"needs to be a positive integer")
                         try:
                             max_capacity = int(str_max_capacity)
                         except ValueError:
@@ -277,22 +284,23 @@ class MapParser:
                             f"Line {line_nbr}: a connection accepts only "
                             f"one metadata block [...]")
 
-                    for iterated_connection in self.connections:
+                    for iter_connection in self.connections:
                         if (
-                                iterated_connection.path_a == connected_zone1
+                                iter_connection.joined_zone_a == joined_zone1
                         ) and (
-                                iterated_connection.path_b == connected_zone2
+                                iter_connection.joined_zone_b == joined_zone2
                         ) or (
-                                iterated_connection.path_b == connected_zone1
+                                iter_connection.joined_zone_b == joined_zone1
                         ) and (
-                                iterated_connection.path_a == connected_zone2
+                                iter_connection.joined_zone_a == joined_zone2
                         ):
                             raise ValueError(
                                 f"Line {line_nbr}: connection "
-                                f"'{connected_zone1}-{connected_zone2}' "
+                                f"'{joined_zone1}-{joined_zone2}' "
                                 f"is duplicated")
                     new_connection = Connection(
-                        path_a=connected_zone1, path_b=connected_zone2,
+                        joined_zone_a = joined_zone1, 
+                        joined_zone_b = joined_zone2,
                         max_link_capacity=max_capacity)
                     self.connections.append(new_connection)
                     continue  # skips the rest of verifications for metadata
@@ -313,6 +321,10 @@ class MapParser:
                         f"Line {line_nbr}: a zone needs a name and two "
                         f"coordinates (got {len(coord_and_name)} values)")
                 name, x, y = coord_and_name
+                if line.startswith("start_hub"):
+                    self.start_hub_name = line[0]
+                if line.startswith("end_hub"):
+                    self.end_hub_name = line[0]
                 try:
                     int(x)
                 except ValueError:
@@ -376,6 +388,12 @@ class MapParser:
                                     f"'{value}' (expected normal, blocked, "
                                     f"restricted or priority)")
                         elif "max_drones" == key:
+                            if line.startswith("start_hub") or (
+                                    line.startswith("end_hub")):
+                                continue
+                            if not value.isdigit():
+                                raise ValueError(f"Line {line_nbr}: {key} "
+                                                 "must be a positive integer")
                             try:
                                 # because with model_config =
                                 # ConfigDict(strict=True) pydantic no loger
@@ -422,4 +440,3 @@ class MapParser:
             raise ValueError("start_hub is missing")
         if end_hub_counter == 0:
             raise ValueError("end_hub is missing")
-

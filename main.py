@@ -8,6 +8,11 @@ def main() -> None:
         sys.exit(1)
     try:
         map = MapParser(sys.argv[1])
+        """
+        python3 main.py maps/easy/02_simple_fork.txt
+        sys.argv = ["main.py", "maps/easy/02_simple_fork.txt"]
+                      [0]                [1]
+        """
         map.parse()
     except ValueError as e:
         print(f"{e}")

@@ -232,6 +232,49 @@ class Pathfinder:
         return None
  
     def find_paths(self, nb_drones: int) -> list[list[str]]:
+        """Return several different paths from start to end, cheapest first.
+
+        Aim:
+            The drones need more than one path so they can spread out
+            (VII.1 asks for distribution across multiple paths). This
+            method calls find_shortest_path several times. After each
+            search it adds 1 in zn_usage to every middle zone of the path
+            found, so the next search pays a penalty for those zones and
+            tends to find a different path.
+
+            Only the middle zones (path[1:-1]) are counted: every path
+            goes through the start and the end, so a penalty there would
+            raise all paths the same and change nothing.
+
+            It makes one search per drone (max_searches), but never more
+            than the number of zones (nb_zones). This is only a practical
+            cap, not a PDF rule: with many drones on a small map the same
+            paths would come out again and again.
+
+            If find_shortest_path returns None, the loop stops: adding
+            penalties never opens a new path. A path already in paths is
+            not added again.
+
+        Args:
+            nb_drones: number of drones of the map. It decides how many
+                searches are made (at most one per drone).
+
+        Returns:
+            The list of different paths found, each one a list of zone
+            names from start to end, sorted with calculate_path_costs
+            from the cheapest real cost to the most expensive,
+            e.g. [["start", "junction", "path_a", "goal"],
+            ["start", "junction", "path_b", "goal"]].
+
+        Raises:
+            ValueError: if the start or the end zone is BLOCKED, or if
+                there is no path at all from start to end.
+
+        Usage:
+            It is called once per map with the number of drones. The
+            sort uses calculate_path_costs and not the cost of the
+            search, because that one includes the zn_usage penalty.
+        """
         if self.zones[self.start_hub_name].zone_type == ZoneType.BLOCKED:
             raise ValueError(f"start zone '{self.start_hub_name}' can't be blocked")
         if self.zones[self.end_hub_name].zone_type == ZoneType.BLOCKED:
@@ -239,7 +282,33 @@ class Pathfinder:
         
         zn_usage: dict[str, int] = {}
         paths: list[list[str]] = []
-            
+
+        max_searches = nb_drones
+
+        nb_zones = len(self.zones)
+
+        if max_searches > nb_zones:
+            max_searches = nb_zones
+        
+        for i in range(max_searches):
+            path = self.find_shortest_path(zn_usage)
+            if path == None:
+                break
+            elif path not in paths:
+                paths.append(path)
+            for zone in path[1:-1]:
+                if zone in zn_usage:
+                    zn_usage[zone] = zn_usage[zone] + 1
+                else: 
+                    zn_usage[zone] = 1
+
+        if len(paths) == 0:
+            raise ValueError(f"There is no path available from {self.start_hub_name} to {self.end_hub_name}")
+        
+        paths.sort(key= self.calculate_path_costs)  # sort calls the function with path each time and sorts based on the result
+
+        return paths
+
 
 
 

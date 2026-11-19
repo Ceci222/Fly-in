@@ -231,7 +231,14 @@ class Pathfinder:
 
         return None
  
-
+    def find_paths(self, nb_drones: int) -> list[list[str]]:
+        if self.zones[self.start_hub_name].zone_type == ZoneType.BLOCKED:
+            raise ValueError(f"start zone '{self.start_hub_name}' can't be blocked")
+        if self.zones[self.end_hub_name].zone_type == ZoneType.BLOCKED:
+            raise ValueError(f"end zone '{self.end_hub_name}' can't be blocked")
+        
+        zn_usage: dict[str, int] = {}
+        paths: list[list[str]] = []
             
 
 

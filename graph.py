@@ -8,6 +8,8 @@ class Graph:
                  end_hub_name: str) -> None:
         # They'll be received as params, the rest are produced by class
         self.zones = zones
+        # For this object, the attribute start_hub is the one stored in this
+        # variable start_hub_name.
         self.start_hub = start_hub_name
         self.end_hub = end_hub_name
         self.connections = connections
